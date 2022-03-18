@@ -1,2 +1,2 @@
 # tidyverse
-Project to learn tidy verse stuff.
+Project to learn tidyverse stuff.
