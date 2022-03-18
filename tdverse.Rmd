@@ -1,0 +1,293 @@
+---
+title: "R Tidyverse notes"
+output: html_notebook
+---
+
+This is an [R Markdown] Notebook for help with tidyverse.
+
+First set up the directory and load the libraries needed.
+
+```{r}
+setwd("~/R/tidyverse")
+library(tidyverse)
+#library()
+```
+
+# Graph plotting
+
+## Scatterplots
+
+The examples use the dataframe mpg (sometimes mtcars?). The basic template is:
+
+ggplot(data = \<DATA>) +\
+\<GEOM_FUNCTION>(mapping = aes(\<MAPPINGS>))
+
+The scatterplot below shows displacement vs highway mileage. (Note that jitter is added to avoid overlapping points - adds small random values.)
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy),
+#  position = "jitter"
+  )
+```
+
+Colouring by class:
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy, colour = class))
+```
+
+Aesthetics other than colour are: size, alpha (transparency), shape, ...
+
+Placing colour outside aes() gives a different result (only changes the appearance).
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy), colour = "blue")
+```
+
+One can also map a continuous (rather than categorical) variable to colour, alpha, size, but not to shape. (Note these are all different "aesthetics".)
+
+An interesting variation is to map colour to a logical variable:
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy, colour = displ < 5))
+```
+
+We can also add facets.
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_wrap( ~ class, nrow = 2)
+```
+
+One can also facet the plot on the combination of two variables by using facet_grid:
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(drv ~ cyl)
+```
+
+Here is a different geom, a smooth line instead of points:
+
+```{r}
+ggplot(data = mpg) +
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+```
+
+One can also split the line plot by type of drive:
+
+```{r}
+ggplot(data = mpg) +
+  geom_smooth(mapping = aes(x = displ, y = hwy, linetype = drv))
+```
+
+One can also overlay layers:
+
+```{r}
+ggplot(data = mpg) +
+  geom_smooth(mapping = aes(x = displ, y = hwy)) +
+  geom_point(mapping = aes(x = displ, y = hwy))
+```
+
+An alternative and better way of doing this would avoid the repeated mapping definition. Note that colour is mapped to class only in the local geom_point layer.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) +
+  geom_smooth() +
+  geom_point(mapping = aes(colour = class))
+```
+
+Check this (either smooth or point produces a legend, suppress both for no legend):
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy, colour = drv)) +
+  geom_smooth(show.legend = FALSE) +
+  geom_point(show.legend = FALSE)
+```
+
+You can also filter the data made by one of the geoms (Note that se = FALSE removes the confidence band):
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) +
+  geom_smooth(data = filter(mpg, class == "subcompact"), se = FALSE) +
+  geom_point(mapping = aes(colour = class), show.legend = FALSE)
+```
+
+## Bar charts
+
+Bar charts are used to show frequencies by various groupings. The examples below use the diamonds dataset, which contains information about \~54k diamonds including the price, carat, colour, clarity, cut, depth z (percentage relative to mean of length x and width y) and table (percentage relative to width) of each diamond.
+
+Graphs like scatterplot plot the raw values taken from the dataset. However, bar charts, histograms, frequency polygons do more: they bin the data and find counts before plotting. Smoothers fit a model to the data and plot predictions from the model. Boxplots compute a summary and display this through a box.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut))
+```
+
+Note that the same chart can be created with stat_count instead of geom_bar:
+
+```{r}
+ggplot(data = diamonds) +
+  stat_count(mapping = aes(x = cut))
+```
+
+Note that every geom has a default stat and every stat has a default geom. (See the cheatsheet for different stats.) We can suppress stat_count when calling geom_bar by including stat = "identity" as a parameter spec.
+
+&& More on this later &&
+
+We can also produce a bar chart of proportion:
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(
+    mapping = aes(x = cut, y = ..prop.., group = 1)
+  )
+```
+
+Here is a chart produced by stat_summary, which gives the range of depth values grouped by cut:
+
+```{r}
+ggplot(data = diamonds) +
+  stat_summary(
+   mapping = aes(x = cut, y = depth),
+   fun.min = min,
+   fun.max = max,
+   fun = median
+  )
+```
+
+Some fun decorations:
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = cut))
+```
+
+For a stacked bar, code a different variable with fill:
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = clarity))
+```
+
+We can adjust how the bars are positioned using three values for the position parameter: "identity", "dodge" and "fill".
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(
+    mapping = aes(x = cut, fill = clarity),
+    position = "dodge"
+  )
+```
+
+When position = "fill", it produces equal sized bars -- easier for comparison.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(
+    mapping = aes(x = cut, fill = clarity),
+    position = "fill"
+  )
+```
+
+When position = "identity", the bars overlap, which is awkward. So we need to do extra stuff by making the bars slightly (alpha = 0.2) or fully (fill = NA) transparent:
+
+```{r}
+ggplot(
+  data = diamonds,
+  mapping = aes(x = cut, fill = clarity)
+) + 
+#  geom_bar(fill = NA, position = "identity")
+  geom_bar(alpha = 0.2, position = "identity")
+```
+
+## Coordinate systems
+
+These are "probably the most complicated part of ggplot2".
+
+Flipping x and y axes.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) +
+  geom_boxplot() #+ coord_flip()
+```
+
+Plotting maps with correct aspect ratio:
+
+```{r}
+nz <- map_data("nz")
+ggplot(nz, aes(long, lat, group = group)) +
+  geom_polygon(fill = "white", colour = "black")
+ggplot(nz, aes(long, lat, group = group)) +
+  geom_polygon(fill = "white", colour = "black") + coord_quickmap()
+```
+
+Plotting with polar coordinates:
+
+```{r}
+bar <- ggplot(data = diamonds) +
+  geom_bar(
+    mapping = aes(x = cut, fill = cut),
+    show.legend = FALSE,
+    width = 1
+  ) +
+  theme(aspect.ratio = 1) +
+  labs(x = NULL, y = NULL)
+
+bar + coord_flip()
+bar + coord_polar()
+```
+
+# Transforming data
+
+The package that is used to transform data is dplyr.
+
+Common variable types: int, dbl, chr, dttm, lgl, fctr, date.
+
+Five key dplyr functions: filter(), arrange(), select(), mutate(), summarize(). All of these take a data frame as the first argument, and output a new data frame.
+
+A function with changes the scope of the above functions: group_by().
+
+## Filtering rows
+
+Filter selects observations. (Note that wrapping assignment in parantheses also prints out the output.)
+
+```{r}
+(jan1 <- filter(flights, month == 1, day == 1))
+#nov_dec <- filter(flights, month %in% c(11, 12))
+(nov_dec <- filter(flights, month == 11 | month == 12))
+```
+
+Some flights have a missing dep_time. Let's filter them.
+
+```{r}
+(missing_dep_time <- filter(flights, is.na(dep_time)))
+```
+
+## Arranging rows
+
+## Selecting variables
+
+## Adding new variables
+
+The function that does this is mutate(). Note that you can immediately use the new variables.
+
+```{r}
+flights_sml <- select(flights,
+  year:day,
+  ends_with("delay"),
+  distance,
+  air_time
+)
+mutate(flights_sml,
+  gain = arr_delay - dep_delay,
+  speed = distance / air_time * 60,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours
+)
+```
